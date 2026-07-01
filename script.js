@@ -16,13 +16,15 @@ const couleurs = ['♠', '♥', '♦', '♣'];
 const xdecalecarte = ['10', '10', '0', '0'];
 const ydecalecarte = ['0', '0', '10', '10'];
 
-// Compteur de piochage indépendant pour chaque joueur (évite que les joueurs se décalent entre eux)
+// Compteur de piochage indépendant pour chaque joueur
 const pileCount = { haut: 0, bas: 0, gauche: 0, droite: 0 };
 
-// Main (cartes) et nom affiché de chaque joueur
+// Main (cartes), nom affiché et éléments DOM des cartes de chaque joueur
 const mains = { haut: [], bas: [], gauche: [], droite: [] };
 const noms = { haut: '', bas: 'Moi', gauche: '', droite: '' };
+const cartesElements = { haut: [], bas: [], gauche: [], droite: [] };
 
+let menuFerme = false;
 let jeuTermine = false;
 
 function calculerScore(cartes) {
@@ -48,9 +50,9 @@ function calculerScore(cartes) {
 function mettreAJourScore(joueur) {
   const score = calculerScore(mains[joueur]);
   const el = document.getElementById(`score-${joueur}`);
-  if (el) el.textContent = score;
-  if (score > 21 && el) {
-    el.style.color = '#ff8080';
+  if (el) {
+    el.textContent = score;
+    el.style.color = score > 21 ? '#ff8080' : '';
   }
 }
 
@@ -63,22 +65,39 @@ function GenerCarte() {
 
       mains[joueur].push(numbercarte);
 
+      // Structure carte : une face "dos" (visible par défaut pour les autres joueurs) et une face "valeur"
       const carte = document.createElement('div');
       carte.className = 'cart';
-      carte.textContent = contenu;
-      carte.style.display = 'flex';
+      carte.style.display = 'block';
       carte.style.position = 'absolute';
-      carte.style.lineHeight = '134px';
-      carte.style.margin = '0';
-      carte.style.gap = '15px';
 
-      // Position de départ : au niveau du deck, au centre de la table (comme si la carte sortait du paquet)
+      const inner = document.createElement('div');
+      inner.className = 'cart-inner';
+
+      const dos = document.createElement('div');
+      dos.className = 'cart-face cart-back';
+
+      const face = document.createElement('div');
+      face.className = 'cart-face cart-front';
+      face.textContent = contenu;
+
+      inner.appendChild(dos);
+      inner.appendChild(face);
+      carte.appendChild(inner);
+
+      // Nos propres cartes (bas) sont visibles tout de suite, les autres restent cachées (suspense)
+      if (joueur === 'bas') {
+        carte.classList.add('revele');
+      }
+
+      // Position de départ : au niveau du deck, au centre de la table
       carte.style.left = '50%';
       carte.style.top = '50%';
       carte.style.transform = `translate(-50%, -50%) rotate(${tourncartes[j]}deg)`;
       carte.style.opacity = '0';
 
       document.querySelector('.container').appendChild(carte);
+      cartesElements[joueur].push(carte);
 
       const compte = pileCount[joueur];
       const xDecal = parseInt(xdecalecarte[j], 10) * compte;
@@ -96,13 +115,20 @@ function GenerCarte() {
         });
       });
 
-      mettreAJourScore(joueur);
+      if (joueur === 'bas') {
+        mettreAJourScore('bas');
+      }
     }, j * 150); // les cartes partent l'une après l'autre, pas toutes en même temps
   });
 }
 
+document.getElementById('jouer-button').addEventListener('click', () => {
+  document.getElementById('menu-overlay').classList.add('cache');
+  menuFerme = true;
+});
+
 document.querySelector('.deck-animated').addEventListener('click', () => {
-  if (jeuTermine) return;
+  if (!menuFerme || jeuTermine) return;
   document.getElementsByClassName('titre')[0].style.display = 'none';
   document.getElementById('stop-button').style.display = 'inline-block';
   GenerCarte();
@@ -111,31 +137,48 @@ document.querySelector('.deck-animated').addEventListener('click', () => {
 document.getElementById('stop-button').addEventListener('click', () => {
   if (jeuTermine) return;
   jeuTermine = true;
+
   document.querySelector('.deck-animated').classList.add('inactive');
+  const stopBtn = document.getElementById('stop-button');
+  stopBtn.disabled = true;
+  stopBtn.classList.add('desactive');
+
   determinerGagnant();
 });
 
 function determinerGagnant() {
-  const resultats = joueurs.map((j) => ({ joueur: j, score: calculerScore(mains[j]) }));
-  const valides = resultats.filter((r) => r.score <= 21);
-  const resultatDiv = document.getElementById('resultat');
+  // Révélation des cartes cachées, tous en même temps : le moment suspense !
+  joueurs.forEach((j) => {
+    if (j !== 'bas') {
+      cartesElements[j].forEach((carte) => carte.classList.add('revele'));
+    }
+  });
 
-  if (valides.length === 0) {
-    resultatDiv.textContent = 'Tout le monde a dépassé 21, personne ne gagne !';
-    return;
-  }
+  // On laisse le temps à l'animation de retournement de se jouer avant d'annoncer le résultat
+  setTimeout(() => {
+    joueurs.forEach((j) => mettreAJourScore(j));
 
-  const meilleur = Math.max(...valides.map((r) => r.score));
-  const gagnants = valides.filter((r) => r.score === meilleur).map((r) => noms[r.joueur]);
+    const resultats = joueurs.map((j) => ({ joueur: j, score: calculerScore(mains[j]) }));
+    const valides = resultats.filter((r) => r.score <= 21);
+    const resultatDiv = document.getElementById('resultat');
 
-  resultatDiv.textContent =
-    gagnants.length > 1
-      ? `Égalité entre ${gagnants.join(' et ')} avec ${meilleur} points !`
-      : `${gagnants[0]} gagne avec ${meilleur} points !`;
+    if (valides.length === 0) {
+      resultatDiv.textContent = 'Tout le monde a dépassé 21, personne ne gagne !';
+      return;
+    }
+
+    const meilleur = Math.max(...valides.map((r) => r.score));
+    const gagnants = valides.filter((r) => r.score === meilleur).map((r) => noms[r.joueur]);
+
+    resultatDiv.textContent =
+      gagnants.length > 1
+        ? `Égalité entre ${gagnants.join(' et ')} avec ${meilleur} points !`
+        : `${gagnants[0]} gagne avec ${meilleur} points !`;
+  }, 700);
 }
 
 function genererTroisPrenomsDansDivs() {
-  const prenoms = [ 'celio', 'Hugo', 'celian', 'louciano', 'Omar', 'Mohamed', 'Ilan', 'Matt', 'Maily'];
+  const prenoms = ['Emma', 'Lucas', 'Chloé', 'Léo', 'Manon', 'Noah', 'Lina', 'Hugo', 'Inès', 'Nathan', 'Omar', 'Mohamed', 'Ilan', 'Matt', 'Maily'];
   const prenom1 = prenoms[Math.floor(Math.random() * prenoms.length)];
   const prenom2 = prenoms[Math.floor(Math.random() * prenoms.length)];
   const prenom3 = prenoms[Math.floor(Math.random() * prenoms.length)];

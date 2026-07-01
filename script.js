@@ -135,7 +135,7 @@ function determinerGagnant() {
 }
 
 function genererTroisPrenomsDansDivs() {
-  const prenoms = ['Emma', 'Lucas', 'Chloé', 'Léo', 'Manon', 'Noah', 'Lina', 'Hugo', 'Inès', 'Nathan', 'Omar', 'Mohamed', 'Ilan', 'Matt', 'Maily'];
+  const prenoms = [ 'celio', 'Hugo', 'celian', 'louciano', 'Omar', 'Mohamed', 'Ilan', 'Matt', 'Maily'];
   const prenom1 = prenoms[Math.floor(Math.random() * prenoms.length)];
   const prenom2 = prenoms[Math.floor(Math.random() * prenoms.length)];
   const prenom3 = prenoms[Math.floor(Math.random() * prenoms.length)];

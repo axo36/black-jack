@@ -7,17 +7,25 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+  <div id="menu-overlay" class="menu-overlay">
+    <div class="menu-box">
+      <h1>🂡 Blackjack</h1>
+      <p>Clique sur le paquet pour distribuer les cartes. Approche-toi le plus possible de 21 sans le dépasser !
+      Les cartes des autres joueurs resteront cachées jusqu'à la fin de la partie, pour le suspense...</p>
+      <button id="jouer-button">Jouer</button>
+    </div>
+  </div>
+
   <div class="container">
     <h1 class="titre">Table de Blackjack</h1>
 
-    <div id="deck" class="card deck-animated"><h2>Carte</h2></div>
+    <div id="deck" class="card deck-animated"><h2>Piocher</h2></div>
 
-    
-
-    <div class="player haut" id="haut"><span class="nom"></span><span class="score" id="score-haut">0</span></div>
+    <div class="player haut" id="haut"><span class="nom"></span><span class="score" id="score-haut">?</span></div>
     <div class="player bas" id="bas"><span class="nom">Moi</span><span class="score" id="score-bas">0</span></div>
-    <div class="player gauche" id="gauche"><span class="nom"></span><span class="score" id="score-gauche">0</span></div>
-    <div class="player droite" id="droite"><span class="nom"></span><span class="score" id="score-droite">0</span></div>
+    <div class="player gauche" id="gauche"><span class="nom"></span><span class="score" id="score-gauche">?</span></div>
+    <div class="player droite" id="droite"><span class="nom"></span><span class="score" id="score-droite">?</span></div>
 
     <button id="stop-button" class="stop-button">Arrêter de piocher</button>
     <div id="resultat"></div>

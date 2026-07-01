@@ -82,6 +82,19 @@ body {
   flex-wrap: wrap;
   font-family: Nunito;
   font-weight: 800;
+  align-items: center;
+  color: white;
+}
+
+.player .nom {
+  font-size: 1.1em;
+}
+
+.player .score {
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 0.9em;
 }
 
 .haut   { top: 10px; left: 50%; transform: translateX(-50%); }
@@ -126,8 +139,6 @@ h1 {
   width: 100px;
   height: 134px;
   display: none;
-  margin-left: 46%;
-  margin-top: 33%; 
   align-items: center;
   justify-content: center;
   overflow: hidden;

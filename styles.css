@@ -1,22 +1,88 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
 
-body {
-  margin: 0;
-  background-color: brown;
-  padding: 12px;
-  /* padding: 20px; */
+* {
   box-sizing: border-box;
 }
 
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at center, #4b2e19 0%, #2b1810 70%, #180d08 100%);
+  padding: 12px;
+  font-family: Nunito;
+}
+
 .container {
-  background-color: green;
+  background: radial-gradient(ellipse at center, #1f7a3f 0%, #145226 65%, #0c3417 100%);
   min-height: 90vh;
-  border-radius: 10px;
+  border-radius: 16px;
   padding: 20px;
   position: relative;
   overflow: hidden;
   text-align: center;
+  border: 10px solid #3b2415;
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.5);
 }
+
+/* ---------- Menu de démarrage ---------- */
+
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(10, 40, 20, 0.95) 0%, rgba(5, 15, 8, 0.98) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.menu-overlay.cache {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.menu-box {
+  background: rgba(10, 25, 46, 0.95);
+  border: 2px solid #ffd76b;
+  border-radius: 16px;
+  padding: 40px 32px;
+  max-width: 420px;
+  text-align: center;
+  color: white;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+.menu-box h1 {
+  color: #ffd76b;
+  font-size: 2.2em;
+  margin-top: 0;
+}
+
+.menu-box p {
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+#jouer-button {
+  margin-top: 16px;
+  padding: 12px 32px;
+  font-size: 1.1em;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffd76b, #ff9f43);
+  color: #1a1a1a;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+#jouer-button:hover {
+  transform: scale(1.05);
+}
+
+/* ---------- Deck ---------- */
 
 .deck-animated {
   width: 170px;
@@ -34,6 +100,7 @@ body {
   transform: translate(-50%, -50%);
   z-index: 10;
   transition: all 0.6s ease;
+  cursor: pointer;
 }
 
 .deck-animated h2 {
@@ -58,6 +125,7 @@ body {
   height: 130%;
   background-image: linear-gradient(180deg, rgb(0, 183, 255), rgb(255, 48, 255));
   animation: rotBGimg 3s linear infinite;
+  display: flex;
 }
 
 @keyframes rotBGimg {
@@ -65,15 +133,13 @@ body {
   to { transform: rotate(360deg); }
 }
 
-.deck-animated::before {
-  display: flex;
-}
-
 .deck-animated.inactive {
   filter: grayscale(0.8);
   pointer-events: none;
   cursor: not-allowed;
 }
+
+/* ---------- Joueurs ---------- */
 
 .player {
   position: absolute;
@@ -102,6 +168,8 @@ body {
 .gauche { top: 50%; left: 10px; transform: translateY(-50%); flex-direction: column; }
 .droite { top: 50%; right: 10px; transform: translateY(-50%); flex-direction: column; }
 
+/* ---------- Boutons / résultat ---------- */
+
 #stop-button {
   position: absolute;
   bottom: 80px;
@@ -115,6 +183,12 @@ body {
   border-radius: 10px;
   cursor: pointer;
   display: none;
+  transition: opacity 0.2s ease;
+}
+
+#stop-button.desactive {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 #resultat {
@@ -135,25 +209,52 @@ h1 {
   display: block;
 }
 
+/* ---------- Cartes ---------- */
+
 .cart {
   width: 100px;
   height: 134px;
   display: none;
+  position: absolute;
+  z-index: 10;
+  perspective: 800px;
+}
+
+.cart-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s ease;
+  transform-style: preserve-3d;
+}
+
+.cart.revele .cart-inner {
+  transform: rotateY(180deg);
+}
+
+.cart-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   border-radius: 20px;
+  backface-visibility: hidden;
+  font-family: Nunito;
+  font-size: 2em;
+  font-weight: 800;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.788);
-  z-index: 10;
-  transform: rotate(0deg);
+}
+
+.cart-back {
+  background: repeating-linear-gradient(45deg, #0b2a52, #0b2a52 8px, #123a6b 8px, #123a6b 16px);
+  border: 3px solid rgba(255, 182, 255, 0.4);
+}
+
+.cart-front {
+  transform: rotateY(180deg);
+  color: white;
   border: 3px solid transparent;
   background: linear-gradient(#020025) padding-box,
               linear-gradient(180deg, rgb(0, 183, 255), rgb(255, 48, 255)) border-box;
-  
-  color: white;
-  font-family: Nunito;
-  font-size: 2.9em;
-  text-align: center;
-  line-height: 128px;
-  gap: 5px;
 }

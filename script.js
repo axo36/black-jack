@@ -1,334 +1,290 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
+// ⤵️ Mets tout ton code JavaScript ici
+const joueurs = ['haut', 'bas', 'gauche', 'droite'];
+const banque = 'haut'; // la banque : tout le monde joue contre elle, pas entre eux
 
-* {
-  box-sizing: border-box;
+// Position finale de chaque joueur, alignée avec sa position réelle à l'écran
+const Xpositioncarte = ['44.5', '44.5', '10', '79'];   // haut, bas, gauche, droite
+const Ypositioncarte = ['8', '71', '38', '38'];        // haut, bas, gauche, droite
+
+// Orientation de chaque carte : le "haut" de la carte pointe...
+// haut -> vers la gauche, bas (moi) -> vers la droite, gauche -> vers le bas, droite -> vers le haut
+const tourncartes = ['-90', '90', '180', '0'];         // haut, bas, gauche, droite
+
+const valeurs = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const couleurs = ['♠', '♥', '♦', '♣'];
+
+// Décalage entre les cartes d'un même joueur : horizontal pour haut/bas, vertical pour gauche/droite
+const xdecalecarte = ['10', '10', '0', '0'];
+const ydecalecarte = ['0', '0', '10', '10'];
+
+// Compteur de piochage indépendant pour chaque joueur
+const pileCount = { haut: 0, bas: 0, gauche: 0, droite: 0 };
+
+// Main (cartes), nom affiché et éléments DOM des cartes de chaque joueur
+const mains = { haut: [], bas: [], gauche: [], droite: [] };
+const noms = { haut: '', bas: 'Moi', gauche: '', droite: '' };
+const cartesElements = { haut: [], bas: [], gauche: [], droite: [] };
+
+// Les 3 adversaires jouent chacun pour leur compte : true = ils tirent encore, false = ils ont choisi de s'arrêter
+const enJeu = { haut: true, gauche: true, droite: true };
+
+let menuFerme = false;
+let jeuTermine = false;
+let enCours = false; // empêche de spammer le paquet pendant une animation
+
+function calculerScore(cartes) {
+  let total = 0;
+  let as = 0;
+  for (const c of cartes) {
+    if (c === 'A') {
+      total += 11;
+      as++;
+    } else if (c === 'J' || c === 'Q' || c === 'K') {
+      total += 10;
+    } else {
+      total += parseInt(c, 10);
+    }
+  }
+  while (total > 21 && as > 0) {
+    total -= 10;
+    as--;
+  }
+  return total;
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background-color: brown;
-  padding: 12px;
-  font-family: Nunito;
+function mettreAJourScore(joueur) {
+  const score = calculerScore(mains[joueur]);
+  const el = document.getElementById(`score-${joueur}`);
+  if (el) {
+    el.textContent = score;
+    el.style.color = score > 21 ? '#ff8080' : '';
+  }
 }
 
-.container {
-  background-color: green;
-  min-height: 90vh;
-  border-radius: 10px;
-  padding: 20px;
-  position: relative;
-  overflow: hidden;
-  text-align: center;
+function creerCarteDOM(joueur, j, numbercarte, signecarte) {
+  const contenu = `${numbercarte} ${signecarte}`;
+
+  const carte = document.createElement('div');
+  carte.className = 'cart';
+  carte.style.display = 'block';
+  carte.style.position = 'absolute';
+
+  const inner = document.createElement('div');
+  inner.className = 'cart-inner';
+
+  const dos = document.createElement('div');
+  dos.className = 'cart-face cart-back';
+
+  const face = document.createElement('div');
+  face.className = 'cart-face cart-front';
+  face.textContent = contenu;
+
+  inner.appendChild(dos);
+  inner.appendChild(face);
+  carte.appendChild(inner);
+
+  // Mes cartes (bas) sont visibles tout de suite ; la banque montre sa toute première carte (comme au vrai jeu) ; le reste reste caché (suspense)
+  if (joueur === 'bas' || (joueur === banque && mains[joueur].length === 1)) {
+    carte.classList.add('revele');
+  }
+
+  // Position de départ : au niveau du deck, au centre de la table
+  carte.style.left = '50%';
+  carte.style.top = '50%';
+  carte.style.transform = `translate(-50%, -50%) rotate(${tourncartes[j]}deg)`;
+  carte.style.opacity = '0';
+
+  document.querySelector('.container').appendChild(carte);
+  cartesElements[joueur].push(carte);
+
+  const compte = pileCount[joueur];
+  const xDecal = parseInt(xdecalecarte[j], 10) * compte;
+  const yDecal = parseInt(ydecalecarte[j], 10) * compte;
+  pileCount[joueur]++;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      carte.style.transition = 'left 0.6s ease, top 0.6s ease, transform 0.6s ease, opacity 0.4s ease';
+      carte.style.left = `calc(${Xpositioncarte[j]}vw + ${xDecal}px)`;
+      carte.style.top = `calc(${Ypositioncarte[j]}vh + ${yDecal}px)`;
+      carte.style.transform = `rotate(${tourncartes[j]}deg)`;
+      carte.style.opacity = '1';
+    });
+  });
 }
 
-/* ---------- Menu de démarrage ---------- */
-
-.menu-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 20, 15, 0.45);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  transition: opacity 0.4s ease, visibility 0.4s ease;
+function annoncerStatut(joueur, texte) {
+  const el = document.getElementById(`statut-${joueur}`);
+  if (!el) return;
+  el.textContent = texte;
+  el.classList.add('visible');
 }
 
-.menu-overlay.cache {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
+function GenerCarte() {
+  enCours = true;
+  let dernierDelai = 0;
+
+  joueurs.forEach((joueur, j) => {
+    // Décision de chaque joueur : moi je pioche toujours quand je clique, les IA décident selon leur score
+    const doitJouer = joueur === 'bas' || (enJeu[joueur] && calculerScore(mains[joueur]) < 17);
+    if (!doitJouer) {
+      if (joueur !== 'bas' && enJeu[joueur]) {
+        enJeu[joueur] = false;
+        annoncerStatut(joueur, 'reste sur sa main ✋');
+      }
+      return;
+    }
+
+    if (joueur !== 'bas') {
+      annoncerStatut(joueur, 'pioche une carte...');
+    }
+
+    const delai = j * 150;
+    dernierDelai = Math.max(dernierDelai, delai);
+
+    setTimeout(() => {
+      const numbercarte = valeurs[Math.floor(Math.random() * valeurs.length)];
+      const signecarte = couleurs[Math.floor(Math.random() * couleurs.length)];
+
+      mains[joueur].push(numbercarte);
+      creerCarteDOM(joueur, j, numbercarte, signecarte);
+
+      if (joueur === 'bas') {
+        mettreAJourScore('bas');
+        if (calculerScore(mains.bas) > 21) {
+          setTimeout(() => arreterPartie(), 500);
+        }
+      }
+    }, delai);
+  });
+
+  setTimeout(() => {
+    enCours = false;
+  }, dernierDelai + 700);
 }
 
-.menu-box {
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 20px;
-  padding: 32px 30px;
-  max-width: 380px;
-  text-align: center;
-  color: #17311f;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+function arreterPartie() {
+  if (jeuTermine) return;
+  jeuTermine = true;
+
+  document.querySelector('.deck-animated').classList.add('inactive');
+  const stopBtn = document.getElementById('stop-button');
+  stopBtn.disabled = true;
+  stopBtn.classList.add('desactive');
+
+  determinerGagnant();
 }
 
-.menu-box h1 {
-  color: #1b5e20;
-  font-size: 2em;
-  margin: 4px 0 8px;
+function determinerGagnant() {
+  // Révélation des cartes cachées, toutes en même temps : le moment suspense !
+  joueurs.forEach((j) => {
+    if (j !== 'bas') {
+      cartesElements[j].forEach((carte) => carte.classList.add('revele'));
+    }
+  });
+
+  setTimeout(() => {
+    joueurs.forEach((j) => mettreAJourScore(j));
+
+    const scoreBanque = calculerScore(mains[banque]);
+    const banqueBust = scoreBanque > 21;
+
+    const contreLaBanque = joueurs.filter((j) => j !== banque); // bas, gauche, droite
+
+    const lignes = contreLaBanque.map((j) => {
+      const score = calculerScore(mains[j]);
+      let issue;
+      if (score > 21) {
+        issue = 'perdu (plus de 21)';
+      } else if (banqueBust) {
+        issue = 'gagné (la banque a dépassé 21)';
+      } else if (score > scoreBanque) {
+        issue = 'gagné';
+      } else if (score === scoreBanque) {
+        issue = 'égalité';
+      } else {
+        issue = 'perdu';
+      }
+      return `${noms[j]} : ${score} — ${issue}`;
+    });
+
+    const ligneBanque = banqueBust
+      ? `${noms[banque]} (banque) : ${scoreBanque} — a dépassé 21 !`
+      : `${noms[banque]} (banque) : ${scoreBanque}`;
+
+    document.getElementById('resultat').innerHTML = [ligneBanque, ...lignes].join('<br>');
+    document.getElementById('rejouer-button').style.display = 'inline-block';
+  }, 700);
 }
 
-.menu-box p {
-  line-height: 1.5;
-  opacity: 0.85;
-  font-size: 0.95em;
+function resetPartie() {
+  document.querySelectorAll('.cart').forEach((c) => c.remove());
+
+  joueurs.forEach((j) => {
+    mains[j] = [];
+    cartesElements[j] = [];
+    pileCount[j] = 0;
+  });
+  enJeu.haut = true;
+  enJeu.gauche = true;
+  enJeu.droite = true;
+
+  jeuTermine = false;
+  enCours = false;
+
+  document.querySelector('.deck-animated').classList.remove('inactive');
+
+  const stopBtn = document.getElementById('stop-button');
+  stopBtn.style.display = 'none';
+  stopBtn.disabled = false;
+  stopBtn.classList.remove('desactive');
+
+  document.getElementById('rejouer-button').style.display = 'none';
+  document.getElementById('resultat').textContent = '';
+
+  document.getElementById('score-bas').textContent = '0';
+  document.getElementById('score-bas').style.color = '';
+  ['haut', 'gauche', 'droite'].forEach((j) => {
+    const el = document.getElementById(`score-${j}`);
+    el.textContent = '?';
+    el.style.color = '';
+    const statutEl = document.getElementById(`statut-${j}`);
+    statutEl.textContent = '';
+    statutEl.classList.remove('visible');
+  });
+
+  document.getElementsByClassName('titre')[0].style.display = 'block';
+  genererTroisPrenomsDansDivs();
 }
 
-.menu-cartes {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 8px;
+document.getElementById('jouer-button').addEventListener('click', () => {
+  document.getElementById('menu-overlay').classList.add('cache');
+  menuFerme = true;
+});
+
+document.querySelector('.deck-animated').addEventListener('click', () => {
+  if (!menuFerme || jeuTermine || enCours) return;
+  document.getElementsByClassName('titre')[0].style.display = 'none';
+  document.getElementById('stop-button').style.display = 'inline-block';
+  GenerCarte();
+});
+
+document.getElementById('stop-button').addEventListener('click', arreterPartie);
+
+document.getElementById('rejouer-button').addEventListener('click', resetPartie);
+
+function genererTroisPrenomsDansDivs() {
+  const prenoms = ['Emma', 'Lucas', 'Chloé', 'Léo', 'Manon', 'Noah', 'Lina', 'Hugo', 'Inès', 'Nathan', 'Omar', 'Mohamed', 'Ilan', 'Matt', 'Maily'];
+  const prenom1 = prenoms[Math.floor(Math.random() * prenoms.length)];
+  const prenom2 = prenoms[Math.floor(Math.random() * prenoms.length)];
+  const prenom3 = prenoms[Math.floor(Math.random() * prenoms.length)];
+
+  noms.haut = prenom1;
+  noms.gauche = prenom2;
+  noms.droite = prenom3;
+
+  document.querySelector('#haut .nom').textContent = prenom1;
+  document.querySelector('#gauche .nom').textContent = prenom2;
+  document.querySelector('#droite .nom').textContent = prenom3;
 }
-
-.mini-carte {
-  width: 44px;
-  height: 60px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 0.95em;
-  animation: flotte 2.4s ease-in-out infinite;
-}
-
-.mini-carte.c1 { color: #222; animation-delay: 0s; }
-.mini-carte.c2 { color: #d1264f; animation-delay: 0.2s; }
-.mini-carte.c3 { color: #2f6fed; animation-delay: 0.4s; }
-
-@keyframes flotte {
-  0%, 100% { transform: translateY(0) rotate(-4deg); }
-  50% { transform: translateY(-8px) rotate(4deg); }
-}
-
-#jouer-button {
-  margin-top: 14px;
-  padding: 12px 32px;
-  font-size: 1.05em;
-  font-weight: 800;
-  background: linear-gradient(135deg, #ffd76b, #ff9f43);
-  color: #1a1a1a;
-  border: none;
-  border-radius: 30px;
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-#jouer-button:hover {
-  transform: scale(1.05);
-}
-
-/* ---------- Deck ---------- */
-
-.deck-animated {
-  width: 170px;
-  height: 234px;
-  background: #07192E;
-  position: absolute;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-radius: 20px;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.253);
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 10;
-  transition: all 0.6s ease;
-  cursor: pointer;
-}
-
-.deck-animated h2 {
-  z-index: 1;
-  color: antiquewhite;
-  font-size: 2em;
-  font-family: Nunito;
-}
-
-.deck-animated::after {
-  content: '';
-  position: absolute;
-  background-color: #020025;
-  inset: 5px;
-  border-radius: 15px;
-}
-
-.deck-animated::before {
-  content: '';
-  position: absolute;
-  width: 110px;
-  height: 130%;
-  background-image: linear-gradient(180deg, rgb(0, 183, 255), rgb(255, 48, 255));
-  animation: rotBGimg 3s linear infinite;
-  display: flex;
-}
-
-@keyframes rotBGimg {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.deck-animated.inactive {
-  filter: grayscale(0.8);
-  pointer-events: none;
-  cursor: not-allowed;
-}
-
-/* ---------- Joueurs ---------- */
-
-.player {
-  position: absolute;
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  font-family: Nunito;
-  font-weight: 800;
-  align-items: center;
-  color: white;
-}
-
-.player .nom {
-  font-size: 1.1em;
-}
-
-.player .score {
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 8px;
-  padding: 2px 8px;
-  font-size: 0.9em;
-}
-
-.player .statut {
-  font-size: 0.75em;
-  font-weight: 600;
-  font-style: italic;
-  opacity: 0;
-  color: #ffd76b;
-  width: 100%;
-  transition: opacity 0.4s ease;
-}
-
-.player .statut.visible {
-  opacity: 1;
-}
-
-.badge-banque {
-  background: linear-gradient(135deg, #ffd76b, #ff9f43);
-  color: #1a1a1a;
-  font-size: 0.65em;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  width: fit-content;
-}
-
-.haut   { top: 10px; left: 50%; transform: translateX(-50%); }
-.bas    { bottom: 10px; left: 50%; transform: translateX(-50%); }
-.gauche { top: 50%; left: 10px; transform: translateY(-50%); flex-direction: column; }
-.droite { top: 50%; right: 10px; transform: translateY(-50%); flex-direction: column; }
-
-/* ---------- Boutons / résultat ---------- */
-
-.actions {
-  position: absolute;
-  bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 12px;
-  z-index: 20;
-}
-
-#stop-button, #rejouer-button {
-  padding: 10px 20px;
-  font-size: 1em;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  display: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-#stop-button {
-  background: #222;
-  color: white;
-}
-
-#stop-button.desactive {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-#rejouer-button {
-  background: linear-gradient(135deg, #ffd76b, #ff9f43);
-  color: #1a1a1a;
-  font-weight: 800;
-}
-
-#stop-button:hover, #rejouer-button:hover {
-  transform: scale(1.05);
-}
-
-#resultat {
-  position: absolute;
-  bottom: 20px;
-  width: 100%;
-  text-align: center;
-  font-size: 1.1em;
-  line-height: 1.6;
-  color: white;
-  font-weight: bold;
-}
-
-h1 {
-  font-family: Nunito;
-}
-
-.titre {
-  display: block;
-}
-
-/* ---------- Cartes ---------- */
-
-.cart {
-  width: 100px;
-  height: 134px;
-  display: none;
-  position: absolute;
-  z-index: 10;
-  perspective: 800px;
-}
-
-.cart-inner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transition: transform 0.6s ease;
-  transform-style: preserve-3d;
-}
-
-.cart.revele .cart-inner {
-  transform: rotateY(180deg);
-}
-
-.cart-face {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 20px;
-  backface-visibility: hidden;
-  font-family: Nunito;
-  font-size: 2em;
-  font-weight: 800;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.788);
-}
-
-.cart-back {
-  background: repeating-linear-gradient(45deg, #0b2a52, #0b2a52 8px, #123a6b 8px, #123a6b 16px);
-  border: 3px solid rgba(255, 182, 255, 0.4);
-}
-
-.cart-front {
-  transform: rotateY(180deg);
-  color: white;
-  border: 3px solid transparent;
-  background: linear-gradient(#020025) padding-box,
-              linear-gradient(180deg, rgb(0, 183, 255), rgb(255, 48, 255)) border-box;
-}
+genererTroisPrenomsDansDivs();

@@ -21,6 +21,8 @@
     </div>
   </div>
 
+  <div class="solde-permanent">🪙 <span id="solde-permanent-affiche">500</span> Créo</div>
+
   <div class="container">
     <h1 class="titre">Table de Blackjack</h1>
 
@@ -30,6 +32,19 @@
     <div class="player bas" id="bas"><span class="nom">Moi</span><span class="score" id="score-bas">0</span></div>
     <div class="player gauche" id="gauche"><span class="nom"></span><span class="score" id="score-gauche">?</span><span class="statut" id="statut-gauche"></span></div>
     <div class="player droite" id="droite"><span class="nom"></span><span class="score" id="score-droite">?</span><span class="statut" id="statut-droite"></span></div>
+
+    <div class="panneau-mise" id="panneau-mise">
+      <div class="mise-actuelle">Mise : <span id="mise-affiche">0</span> Créo</div>
+      <div class="jetons">
+        <button class="jeton" data-valeur="10">10</button>
+        <button class="jeton" data-valeur="25">25</button>
+        <button class="jeton" data-valeur="50">50</button>
+        <button class="jeton" data-valeur="100">100</button>
+        <button id="annuler-mise" class="jeton annuler" title="Annuler la mise">↺</button>
+      </div>
+      <button id="lancer-button" class="lancer-button" disabled>Lancer la partie</button>
+      <button id="recharge-button" class="recharge-button">Recharger 500 Créo</button>
+    </div>
 
     <div class="actions">
       <button id="stop-button" class="stop-button">Arrêter de piocher</button>

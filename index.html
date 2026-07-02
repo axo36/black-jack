@@ -10,9 +10,13 @@
 
   <div id="menu-overlay" class="menu-overlay">
     <div class="menu-box">
-      <h1>🂡 Blackjack</h1>
-      <p>Clique sur le paquet pour distribuer les cartes. Approche-toi le plus possible de 21 sans le dépasser !
-      Les cartes des autres joueurs resteront cachées jusqu'à la fin de la partie, pour le suspense...</p>
+      <div class="menu-cartes">
+        <div class="mini-carte c1">A♠</div>
+        <div class="mini-carte c2">K♥</div>
+        <div class="mini-carte c3">7♦</div>
+      </div>
+      <h1>Blackjack</h1>
+      <p>Approche-toi de 21 sans le dépasser. Les autres joueurs cachent leur jeu jusqu'à la fin, pour le suspense...</p>
       <button id="jouer-button">Jouer</button>
     </div>
   </div>
@@ -27,7 +31,10 @@
     <div class="player gauche" id="gauche"><span class="nom"></span><span class="score" id="score-gauche">?</span></div>
     <div class="player droite" id="droite"><span class="nom"></span><span class="score" id="score-droite">?</span></div>
 
-    <button id="stop-button" class="stop-button">Arrêter de piocher</button>
+    <div class="actions">
+      <button id="stop-button" class="stop-button">Arrêter de piocher</button>
+      <button id="rejouer-button" class="rejouer-button">Rejouer</button>
+    </div>
     <div id="resultat"></div>
   </div>
 

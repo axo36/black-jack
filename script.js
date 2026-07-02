@@ -5,9 +5,9 @@ const joueurs = ['haut', 'bas', 'gauche', 'droite'];
 const Xpositioncarte = ['44.5', '44.5', '10', '79'];   // haut, bas, gauche, droite
 const Ypositioncarte = ['8', '71', '38', '38'];        // haut, bas, gauche, droite
 
-// Rotation de la carte selon le point de vue de chaque joueur
-// (0 = pour nous, "bas" ; les autres sont tournées pour être lisibles depuis leur place autour de la table)
-const tourncartes = ['180', '0', '-90', '90'];         // haut, bas, gauche, droite
+// Orientation de chaque carte : le "haut" de la carte pointe...
+// haut -> vers la gauche, bas (moi) -> vers la droite, gauche -> vers le bas, droite -> vers le haut
+const tourncartes = ['-90', '90', '180', '0'];         // haut, bas, gauche, droite
 
 const valeurs = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const couleurs = ['♠', '♥', '♦', '♣'];
@@ -24,8 +24,12 @@ const mains = { haut: [], bas: [], gauche: [], droite: [] };
 const noms = { haut: '', bas: 'Moi', gauche: '', droite: '' };
 const cartesElements = { haut: [], bas: [], gauche: [], droite: [] };
 
+// Les 3 adversaires jouent chacun pour leur compte : true = ils tirent encore, false = ils ont choisi de s'arrêter
+const enJeu = { haut: true, gauche: true, droite: true };
+
 let menuFerme = false;
 let jeuTermine = false;
+let enCours = false; // empêche de spammer le paquet pendant une animation
 
 function calculerScore(cartes) {
   let total = 0;
@@ -56,85 +60,95 @@ function mettreAJourScore(joueur) {
   }
 }
 
-function GenerCarte() {
-  joueurs.forEach((joueur, j) => {
-    setTimeout(() => {
-      const numbercarte = valeurs[Math.floor(Math.random() * valeurs.length)];
-      const signecarte = couleurs[Math.floor(Math.random() * couleurs.length)];
-      const contenu = `${numbercarte} ${signecarte}`;
+function creerCarteDOM(joueur, j, numbercarte, signecarte) {
+  const contenu = `${numbercarte} ${signecarte}`;
 
-      mains[joueur].push(numbercarte);
+  const carte = document.createElement('div');
+  carte.className = 'cart';
+  carte.style.display = 'block';
+  carte.style.position = 'absolute';
 
-      // Structure carte : une face "dos" (visible par défaut pour les autres joueurs) et une face "valeur"
-      const carte = document.createElement('div');
-      carte.className = 'cart';
-      carte.style.display = 'block';
-      carte.style.position = 'absolute';
+  const inner = document.createElement('div');
+  inner.className = 'cart-inner';
 
-      const inner = document.createElement('div');
-      inner.className = 'cart-inner';
+  const dos = document.createElement('div');
+  dos.className = 'cart-face cart-back';
 
-      const dos = document.createElement('div');
-      dos.className = 'cart-face cart-back';
+  const face = document.createElement('div');
+  face.className = 'cart-face cart-front';
+  face.textContent = contenu;
 
-      const face = document.createElement('div');
-      face.className = 'cart-face cart-front';
-      face.textContent = contenu;
+  inner.appendChild(dos);
+  inner.appendChild(face);
+  carte.appendChild(inner);
 
-      inner.appendChild(dos);
-      inner.appendChild(face);
-      carte.appendChild(inner);
+  // Nos propres cartes (bas) sont visibles tout de suite, les autres restent cachées (suspense)
+  if (joueur === 'bas') {
+    carte.classList.add('revele');
+  }
 
-      // Nos propres cartes (bas) sont visibles tout de suite, les autres restent cachées (suspense)
-      if (joueur === 'bas') {
-        carte.classList.add('revele');
-      }
+  // Position de départ : au niveau du deck, au centre de la table
+  carte.style.left = '50%';
+  carte.style.top = '50%';
+  carte.style.transform = `translate(-50%, -50%) rotate(${tourncartes[j]}deg)`;
+  carte.style.opacity = '0';
 
-      // Position de départ : au niveau du deck, au centre de la table
-      carte.style.left = '50%';
-      carte.style.top = '50%';
-      carte.style.transform = `translate(-50%, -50%) rotate(${tourncartes[j]}deg)`;
-      carte.style.opacity = '0';
+  document.querySelector('.container').appendChild(carte);
+  cartesElements[joueur].push(carte);
 
-      document.querySelector('.container').appendChild(carte);
-      cartesElements[joueur].push(carte);
+  const compte = pileCount[joueur];
+  const xDecal = parseInt(xdecalecarte[j], 10) * compte;
+  const yDecal = parseInt(ydecalecarte[j], 10) * compte;
+  pileCount[joueur]++;
 
-      const compte = pileCount[joueur];
-      const xDecal = parseInt(xdecalecarte[j], 10) * compte;
-      const yDecal = parseInt(ydecalecarte[j], 10) * compte;
-      pileCount[joueur]++;
-
-      // On force le navigateur à peindre la position de départ avant de lancer l'animation vers la position finale
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          carte.style.transition = 'left 0.6s ease, top 0.6s ease, transform 0.6s ease, opacity 0.4s ease';
-          carte.style.left = `calc(${Xpositioncarte[j]}vw + ${xDecal}px)`;
-          carte.style.top = `calc(${Ypositioncarte[j]}vh + ${yDecal}px)`;
-          carte.style.transform = `rotate(${tourncartes[j]}deg)`;
-          carte.style.opacity = '1';
-        });
-      });
-
-      if (joueur === 'bas') {
-        mettreAJourScore('bas');
-      }
-    }, j * 150); // les cartes partent l'une après l'autre, pas toutes en même temps
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      carte.style.transition = 'left 0.6s ease, top 0.6s ease, transform 0.6s ease, opacity 0.4s ease';
+      carte.style.left = `calc(${Xpositioncarte[j]}vw + ${xDecal}px)`;
+      carte.style.top = `calc(${Ypositioncarte[j]}vh + ${yDecal}px)`;
+      carte.style.transform = `rotate(${tourncartes[j]}deg)`;
+      carte.style.opacity = '1';
+    });
   });
 }
 
-document.getElementById('jouer-button').addEventListener('click', () => {
-  document.getElementById('menu-overlay').classList.add('cache');
-  menuFerme = true;
-});
+function GenerCarte() {
+  enCours = true;
+  let dernierDelai = 0;
 
-document.querySelector('.deck-animated').addEventListener('click', () => {
-  if (!menuFerme || jeuTermine) return;
-  document.getElementsByClassName('titre')[0].style.display = 'none';
-  document.getElementById('stop-button').style.display = 'inline-block';
-  GenerCarte();
-});
+  joueurs.forEach((joueur, j) => {
+    // Décision de chaque joueur : moi je pioche toujours quand je clique, les IA décident selon leur score
+    const doitJouer = joueur === 'bas' || (enJeu[joueur] && calculerScore(mains[joueur]) < 17);
+    if (!doitJouer) {
+      if (joueur !== 'bas') enJeu[joueur] = false;
+      return;
+    }
 
-document.getElementById('stop-button').addEventListener('click', () => {
+    const delai = j * 150;
+    dernierDelai = Math.max(dernierDelai, delai);
+
+    setTimeout(() => {
+      const numbercarte = valeurs[Math.floor(Math.random() * valeurs.length)];
+      const signecarte = couleurs[Math.floor(Math.random() * couleurs.length)];
+
+      mains[joueur].push(numbercarte);
+      creerCarteDOM(joueur, j, numbercarte, signecarte);
+
+      if (joueur === 'bas') {
+        mettreAJourScore('bas');
+        if (calculerScore(mains.bas) > 21) {
+          setTimeout(() => arreterPartie(), 500);
+        }
+      }
+    }, delai);
+  });
+
+  setTimeout(() => {
+    enCours = false;
+  }, dernierDelai + 700);
+}
+
+function arreterPartie() {
   if (jeuTermine) return;
   jeuTermine = true;
 
@@ -144,17 +158,16 @@ document.getElementById('stop-button').addEventListener('click', () => {
   stopBtn.classList.add('desactive');
 
   determinerGagnant();
-});
+}
 
 function determinerGagnant() {
-  // Révélation des cartes cachées, tous en même temps : le moment suspense !
+  // Révélation des cartes cachées, toutes en même temps : le moment suspense !
   joueurs.forEach((j) => {
     if (j !== 'bas') {
       cartesElements[j].forEach((carte) => carte.classList.add('revele'));
     }
   });
 
-  // On laisse le temps à l'animation de retournement de se jouer avant d'annoncer le résultat
   setTimeout(() => {
     joueurs.forEach((j) => mettreAJourScore(j));
 
@@ -164,18 +177,72 @@ function determinerGagnant() {
 
     if (valides.length === 0) {
       resultatDiv.textContent = 'Tout le monde a dépassé 21, personne ne gagne !';
-      return;
+    } else {
+      const meilleur = Math.max(...valides.map((r) => r.score));
+      const gagnants = valides.filter((r) => r.score === meilleur).map((r) => noms[r.joueur]);
+
+      resultatDiv.textContent =
+        gagnants.length > 1
+          ? `Égalité entre ${gagnants.join(' et ')} avec ${meilleur} points !`
+          : `${gagnants[0]} gagne avec ${meilleur} points !`;
     }
 
-    const meilleur = Math.max(...valides.map((r) => r.score));
-    const gagnants = valides.filter((r) => r.score === meilleur).map((r) => noms[r.joueur]);
-
-    resultatDiv.textContent =
-      gagnants.length > 1
-        ? `Égalité entre ${gagnants.join(' et ')} avec ${meilleur} points !`
-        : `${gagnants[0]} gagne avec ${meilleur} points !`;
+    document.getElementById('rejouer-button').style.display = 'inline-block';
   }, 700);
 }
+
+function resetPartie() {
+  document.querySelectorAll('.cart').forEach((c) => c.remove());
+
+  joueurs.forEach((j) => {
+    mains[j] = [];
+    cartesElements[j] = [];
+    pileCount[j] = 0;
+  });
+  enJeu.haut = true;
+  enJeu.gauche = true;
+  enJeu.droite = true;
+
+  jeuTermine = false;
+  enCours = false;
+
+  document.querySelector('.deck-animated').classList.remove('inactive');
+
+  const stopBtn = document.getElementById('stop-button');
+  stopBtn.style.display = 'none';
+  stopBtn.disabled = false;
+  stopBtn.classList.remove('desactive');
+
+  document.getElementById('rejouer-button').style.display = 'none';
+  document.getElementById('resultat').textContent = '';
+
+  document.getElementById('score-bas').textContent = '0';
+  document.getElementById('score-bas').style.color = '';
+  ['haut', 'gauche', 'droite'].forEach((j) => {
+    const el = document.getElementById(`score-${j}`);
+    el.textContent = '?';
+    el.style.color = '';
+  });
+
+  document.getElementsByClassName('titre')[0].style.display = 'block';
+  genererTroisPrenomsDansDivs();
+}
+
+document.getElementById('jouer-button').addEventListener('click', () => {
+  document.getElementById('menu-overlay').classList.add('cache');
+  menuFerme = true;
+});
+
+document.querySelector('.deck-animated').addEventListener('click', () => {
+  if (!menuFerme || jeuTermine || enCours) return;
+  document.getElementsByClassName('titre')[0].style.display = 'none';
+  document.getElementById('stop-button').style.display = 'inline-block';
+  GenerCarte();
+});
+
+document.getElementById('stop-button').addEventListener('click', arreterPartie);
+
+document.getElementById('rejouer-button').addEventListener('click', resetPartie);
 
 function genererTroisPrenomsDansDivs() {
   const prenoms = ['Emma', 'Lucas', 'Chloé', 'Léo', 'Manon', 'Noah', 'Lina', 'Hugo', 'Inès', 'Nathan', 'Omar', 'Mohamed', 'Ilan', 'Matt', 'Maily'];

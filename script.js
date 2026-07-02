@@ -2,20 +2,20 @@
 const joueurs = ['haut', 'bas', 'gauche', 'droite'];
 const banque = 'haut'; // la banque : tout le monde joue contre elle, pas entre eux
 
-// Position finale de chaque joueur, alignée avec sa position réelle à l'écran
-const Xpositioncarte = ['44.5', '44.5', '10', '79'];   // haut, bas, gauche, droite
-const Ypositioncarte = ['8', '71', '38', '38'];        // haut, bas, gauche, droite
+// Position finale de chaque joueur. La banque est au centre de la table.
+const Xpositioncarte = ['44.5', '44.5', '10', '79'];   // haut(banque), bas, gauche, droite
+const Ypositioncarte = ['42', '71', '38', '38'];       // haut(banque), bas, gauche, droite
 
 // Orientation de chaque carte : le "haut" de la carte pointe...
-// haut -> vers la gauche, bas (moi) -> vers la droite, gauche -> vers le bas, droite -> vers le haut
+// banque -> vers la gauche, bas (moi) -> vers la droite, gauche -> vers le bas, droite -> vers le haut
 const tourncartes = ['-90', '90', '180', '0'];         // haut, bas, gauche, droite
 
 const valeurs = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 const couleurs = ['♠', '♥', '♦', '♣'];
 
-// Décalage entre les cartes d'un même joueur : horizontal pour haut/bas, vertical pour gauche/droite
-const xdecalecarte = ['10', '10', '0', '0'];
-const ydecalecarte = ['0', '0', '10', '10'];
+// Décalage entre les cartes d'un même joueur, bien espacé pour lire le score et toutes les cartes
+const xdecalecarte = ['40', '40', '0', '0'];
+const ydecalecarte = ['0', '0', '40', '40'];
 
 // Compteur de piochage indépendant pour chaque joueur
 const pileCount = { haut: 0, bas: 0, gauche: 0, droite: 0 };
@@ -25,12 +25,52 @@ const mains = { haut: [], bas: [], gauche: [], droite: [] };
 const noms = { haut: '', bas: 'Moi', gauche: '', droite: '' };
 const cartesElements = { haut: [], bas: [], gauche: [], droite: [] };
 
-// Les 3 adversaires jouent chacun pour leur compte : true = ils tirent encore, false = ils ont choisi de s'arrêter
+// Les 3 adversaires (dont la banque) jouent chacun pour leur compte
 const enJeu = { haut: true, gauche: true, droite: true };
 
-let menuFerme = false;
+let menuFerme = false;   // menu de démarrage fermé
+let partieLancee = false; // la manche en cours a été lancée
 let jeuTermine = false;
 let enCours = false; // empêche de spammer le paquet pendant une animation
+
+// ---------- Jetons Créo ----------
+let solde = 500;
+let miseActuelle = 0;
+
+function majAffichageSolde() {
+  document.getElementById('solde-permanent-affiche').textContent = solde;
+  document.getElementById('recharge-button').style.display = solde < 10 ? 'inline-block' : 'none';
+}
+
+function majAffichageMise() {
+  document.getElementById('mise-affiche').textContent = miseActuelle;
+  document.getElementById('lancer-button').disabled = miseActuelle <= 0;
+}
+
+document.querySelectorAll('.jeton[data-valeur]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const val = parseInt(btn.dataset.valeur, 10);
+    if (val > solde) return;
+    solde -= val;
+    miseActuelle += val;
+    majAffichageSolde();
+    majAffichageMise();
+  });
+});
+
+document.getElementById('annuler-mise').addEventListener('click', () => {
+  solde += miseActuelle;
+  miseActuelle = 0;
+  majAffichageSolde();
+  majAffichageMise();
+});
+
+document.getElementById('recharge-button').addEventListener('click', () => {
+  solde += 500;
+  majAffichageSolde();
+});
+
+// ---------- Logique du jeu ----------
 
 function calculerScore(cartes) {
   let total = 0;
@@ -61,6 +101,13 @@ function mettreAJourScore(joueur) {
   }
 }
 
+function annoncerStatut(joueur, texte) {
+  const el = document.getElementById(`statut-${joueur}`);
+  if (!el) return;
+  el.textContent = texte;
+  el.classList.add('visible');
+}
+
 function creerCarteDOM(joueur, j, numbercarte, signecarte) {
   const contenu = `${numbercarte} ${signecarte}`;
 
@@ -83,14 +130,20 @@ function creerCarteDOM(joueur, j, numbercarte, signecarte) {
   inner.appendChild(face);
   carte.appendChild(inner);
 
-  // Mes cartes (bas) sont visibles tout de suite ; la banque montre sa toute première carte (comme au vrai jeu) ; le reste reste caché (suspense)
+  // Mes cartes (bas) sont visibles tout de suite ; la banque montre sa toute première carte
+  // (comme au vrai jeu) ; le reste reste caché pour le suspense, pour tout le monde y compris l'IA.
   if (joueur === 'bas' || (joueur === banque && mains[joueur].length === 1)) {
     carte.classList.add('revele');
   }
 
-  // Position de départ : au niveau du deck, au centre de la table
-  carte.style.left = '50%';
-  carte.style.top = '50%';
+  // Position de départ : au niveau du paquet (sa position actuelle, décalée ou non)
+  const deckRect = document.querySelector('.deck-animated').getBoundingClientRect();
+  const containerRect = document.querySelector('.container').getBoundingClientRect();
+  const startLeft = deckRect.left - containerRect.left + deckRect.width / 2;
+  const startTop = deckRect.top - containerRect.top + deckRect.height / 2;
+
+  carte.style.left = `${startLeft}px`;
+  carte.style.top = `${startTop}px`;
   carte.style.transform = `translate(-50%, -50%) rotate(${tourncartes[j]}deg)`;
   carte.style.opacity = '0';
 
@@ -113,19 +166,12 @@ function creerCarteDOM(joueur, j, numbercarte, signecarte) {
   });
 }
 
-function annoncerStatut(joueur, texte) {
-  const el = document.getElementById(`statut-${joueur}`);
-  if (!el) return;
-  el.textContent = texte;
-  el.classList.add('visible');
-}
-
 function GenerCarte() {
   enCours = true;
   let dernierDelai = 0;
 
   joueurs.forEach((joueur, j) => {
-    // Décision de chaque joueur : moi je pioche toujours quand je clique, les IA décident selon leur score
+    // Décision de chaque joueur : moi je pioche toujours quand je clique, les IA (dont la banque) décident selon leur score
     const doitJouer = joueur === 'bas' || (enJeu[joueur] && calculerScore(mains[joueur]) < 17);
     if (!doitJouer) {
       if (joueur !== 'bas' && enJeu[joueur]) {
@@ -212,7 +258,27 @@ function determinerGagnant() {
       ? `${noms[banque]} (banque) : ${scoreBanque} — a dépassé 21 !`
       : `${noms[banque]} (banque) : ${scoreBanque}`;
 
-    document.getElementById('resultat').innerHTML = [ligneBanque, ...lignes].join('<br>');
+    // Règlement de la mise (jetons Créo), uniquement pour moi (bas)
+    let messageMise = '';
+    if (miseActuelle > 0) {
+      const scoreBas = calculerScore(mains.bas);
+      if (scoreBas > 21) {
+        messageMise = `Tu perds ta mise de ${miseActuelle} Créo.`;
+      } else if (banqueBust || scoreBas > scoreBanque) {
+        const blackjackNaturel = mains.bas.length === 2 && scoreBas === 21;
+        const gain = blackjackNaturel ? Math.round(miseActuelle * 2.5) : miseActuelle * 2;
+        solde += gain;
+        messageMise = blackjackNaturel ? `Blackjack ! Tu gagnes ${gain} Créo !` : `Tu gagnes ${gain} Créo !`;
+      } else if (scoreBas === scoreBanque) {
+        solde += miseActuelle;
+        messageMise = `Égalité, ta mise de ${miseActuelle} Créo t'est rendue.`;
+      } else {
+        messageMise = `Tu perds ta mise de ${miseActuelle} Créo.`;
+      }
+      majAffichageSolde();
+    }
+
+    document.getElementById('resultat').innerHTML = [ligneBanque, ...lignes, messageMise].filter(Boolean).join('<br>');
     document.getElementById('rejouer-button').style.display = 'inline-block';
   }, 700);
 }
@@ -231,8 +297,12 @@ function resetPartie() {
 
   jeuTermine = false;
   enCours = false;
+  partieLancee = false;
+  miseActuelle = 0;
+  majAffichageMise();
 
   document.querySelector('.deck-animated').classList.remove('inactive');
+  document.querySelector('.deck-animated').classList.remove('decale');
 
   const stopBtn = document.getElementById('stop-button');
   stopBtn.style.display = 'none';
@@ -240,7 +310,8 @@ function resetPartie() {
   stopBtn.classList.remove('desactive');
 
   document.getElementById('rejouer-button').style.display = 'none';
-  document.getElementById('resultat').textContent = '';
+  document.getElementById('resultat').innerHTML = '';
+  document.getElementById('panneau-mise').style.display = 'flex';
 
   document.getElementById('score-bas').textContent = '0';
   document.getElementById('score-bas').style.color = '';
@@ -262,10 +333,24 @@ document.getElementById('jouer-button').addEventListener('click', () => {
   menuFerme = true;
 });
 
-document.querySelector('.deck-animated').addEventListener('click', () => {
-  if (!menuFerme || jeuTermine || enCours) return;
+document.getElementById('lancer-button').addEventListener('click', () => {
+  if (miseActuelle <= 0 || partieLancee) return;
+  partieLancee = true;
+
   document.getElementsByClassName('titre')[0].style.display = 'none';
+  document.getElementById('panneau-mise').style.display = 'none';
   document.getElementById('stop-button').style.display = 'inline-block';
+
+  // La pioche se décale pour laisser la place à la banque, au centre de la table
+  document.querySelector('.deck-animated').classList.add('decale');
+
+  setTimeout(() => {
+    GenerCarte();
+  }, 500);
+});
+
+document.querySelector('.deck-animated').addEventListener('click', () => {
+  if (!menuFerme || !partieLancee || jeuTermine || enCours) return;
   GenerCarte();
 });
 
@@ -288,3 +373,5 @@ function genererTroisPrenomsDansDivs() {
   document.querySelector('#droite .nom').textContent = prenom3;
 }
 genererTroisPrenomsDansDivs();
+majAffichageSolde();
+majAffichageMise();

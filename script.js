@@ -1,5 +1,6 @@
 // ⤵️ Mets tout ton code JavaScript ici
 const joueurs = ['haut', 'bas', 'gauche', 'droite'];
+const banque = 'haut'; // la banque : tout le monde joue contre elle, pas entre eux
 
 // Position finale de chaque joueur, alignée avec sa position réelle à l'écran
 const Xpositioncarte = ['44.5', '44.5', '10', '79'];   // haut, bas, gauche, droite
@@ -82,8 +83,8 @@ function creerCarteDOM(joueur, j, numbercarte, signecarte) {
   inner.appendChild(face);
   carte.appendChild(inner);
 
-  // Nos propres cartes (bas) sont visibles tout de suite, les autres restent cachées (suspense)
-  if (joueur === 'bas') {
+  // Mes cartes (bas) sont visibles tout de suite ; la banque montre sa toute première carte (comme au vrai jeu) ; le reste reste caché (suspense)
+  if (joueur === 'bas' || (joueur === banque && mains[joueur].length === 1)) {
     carte.classList.add('revele');
   }
 
@@ -112,6 +113,13 @@ function creerCarteDOM(joueur, j, numbercarte, signecarte) {
   });
 }
 
+function annoncerStatut(joueur, texte) {
+  const el = document.getElementById(`statut-${joueur}`);
+  if (!el) return;
+  el.textContent = texte;
+  el.classList.add('visible');
+}
+
 function GenerCarte() {
   enCours = true;
   let dernierDelai = 0;
@@ -120,8 +128,15 @@ function GenerCarte() {
     // Décision de chaque joueur : moi je pioche toujours quand je clique, les IA décident selon leur score
     const doitJouer = joueur === 'bas' || (enJeu[joueur] && calculerScore(mains[joueur]) < 17);
     if (!doitJouer) {
-      if (joueur !== 'bas') enJeu[joueur] = false;
+      if (joueur !== 'bas' && enJeu[joueur]) {
+        enJeu[joueur] = false;
+        annoncerStatut(joueur, 'reste sur sa main ✋');
+      }
       return;
+    }
+
+    if (joueur !== 'bas') {
+      annoncerStatut(joueur, 'pioche une carte...');
     }
 
     const delai = j * 150;
@@ -171,22 +186,33 @@ function determinerGagnant() {
   setTimeout(() => {
     joueurs.forEach((j) => mettreAJourScore(j));
 
-    const resultats = joueurs.map((j) => ({ joueur: j, score: calculerScore(mains[j]) }));
-    const valides = resultats.filter((r) => r.score <= 21);
-    const resultatDiv = document.getElementById('resultat');
+    const scoreBanque = calculerScore(mains[banque]);
+    const banqueBust = scoreBanque > 21;
 
-    if (valides.length === 0) {
-      resultatDiv.textContent = 'Tout le monde a dépassé 21, personne ne gagne !';
-    } else {
-      const meilleur = Math.max(...valides.map((r) => r.score));
-      const gagnants = valides.filter((r) => r.score === meilleur).map((r) => noms[r.joueur]);
+    const contreLaBanque = joueurs.filter((j) => j !== banque); // bas, gauche, droite
 
-      resultatDiv.textContent =
-        gagnants.length > 1
-          ? `Égalité entre ${gagnants.join(' et ')} avec ${meilleur} points !`
-          : `${gagnants[0]} gagne avec ${meilleur} points !`;
-    }
+    const lignes = contreLaBanque.map((j) => {
+      const score = calculerScore(mains[j]);
+      let issue;
+      if (score > 21) {
+        issue = 'perdu (plus de 21)';
+      } else if (banqueBust) {
+        issue = 'gagné (la banque a dépassé 21)';
+      } else if (score > scoreBanque) {
+        issue = 'gagné';
+      } else if (score === scoreBanque) {
+        issue = 'égalité';
+      } else {
+        issue = 'perdu';
+      }
+      return `${noms[j]} : ${score} — ${issue}`;
+    });
 
+    const ligneBanque = banqueBust
+      ? `${noms[banque]} (banque) : ${scoreBanque} — a dépassé 21 !`
+      : `${noms[banque]} (banque) : ${scoreBanque}`;
+
+    document.getElementById('resultat').innerHTML = [ligneBanque, ...lignes].join('<br>');
     document.getElementById('rejouer-button').style.display = 'inline-block';
   }, 700);
 }
@@ -222,6 +248,9 @@ function resetPartie() {
     const el = document.getElementById(`score-${j}`);
     el.textContent = '?';
     el.style.color = '';
+    const statutEl = document.getElementById(`statut-${j}`);
+    statutEl.textContent = '';
+    statutEl.classList.remove('visible');
   });
 
   document.getElementsByClassName('titre')[0].style.display = 'block';

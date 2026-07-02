@@ -7,21 +7,19 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #3b2b20;
+  background-color: brown;
   padding: 12px;
   font-family: Nunito;
 }
 
 .container {
-  background: #1b5e20;
+  background-color: green;
   min-height: 90vh;
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 20px;
   position: relative;
   overflow: hidden;
   text-align: center;
-  border: 6px solid #5d4130;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 /* ---------- Menu de démarrage ---------- */
@@ -194,6 +192,31 @@ body {
   font-size: 0.9em;
 }
 
+.player .statut {
+  font-size: 0.75em;
+  font-weight: 600;
+  font-style: italic;
+  opacity: 0;
+  color: #ffd76b;
+  width: 100%;
+  transition: opacity 0.4s ease;
+}
+
+.player .statut.visible {
+  opacity: 1;
+}
+
+.badge-banque {
+  background: linear-gradient(135deg, #ffd76b, #ff9f43);
+  color: #1a1a1a;
+  font-size: 0.65em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  width: fit-content;
+}
+
 .haut   { top: 10px; left: 50%; transform: translateX(-50%); }
 .bas    { bottom: 10px; left: 50%; transform: translateX(-50%); }
 .gauche { top: 50%; left: 10px; transform: translateY(-50%); flex-direction: column; }
@@ -243,10 +266,11 @@ body {
 
 #resultat {
   position: absolute;
-  bottom: 40px;
+  bottom: 20px;
   width: 100%;
   text-align: center;
-  font-size: 1.5em;
+  font-size: 1.1em;
+  line-height: 1.6;
   color: white;
   font-weight: bold;
 }
